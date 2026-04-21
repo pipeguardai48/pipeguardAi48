@@ -1,0 +1,6 @@
+path: C:\Users\DELL\plateforme_pipe\uploads\dataset # dataset root dir
+train: train/images
+val: valid/images
+test: test/images
+nc: 1
+names: {'0': 'gas'}

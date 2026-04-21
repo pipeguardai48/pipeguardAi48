@@ -1,0 +1,264 @@
+<!-- images.html: Image Upload and Prediction -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PipeGuard AI - Image Inspection</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .upload-area {
+            border: 2px dashed #007bff;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: border-color 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #0056b3;
+            background-color: #f8f9fa;
+        }
+        .result-image {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .detection-box {
+            position: absolute;
+            border: 2px solid #ff0000;
+            background: rgba(255, 0, 0, 0.1);
+        }
+        .prediction-text {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('employee_index') }}"><i class="fas fa-shield-alt me-2"></i>PipeGuard AI</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('employee_index') }}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#upload">Upload</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mt-5 pt-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <h1 class="text-center mb-4">Image Upload & Anomaly Detection</h1>
+                <p class="text-center text-muted mb-5">Upload pipe images from your PC for AI-powered inspection.</p>
+
+                <!-- Upload Section -->
+                <section id="upload" class="mb-5">
+                    <div class="upload-area" onclick="document.getElementById('imageInput').click()">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                        <h4>Drag & Drop or Click to Upload Image</h4>
+                        <p class="text-muted">Supports PNG, JPG, JPEG (Max 10MB)</p>
+                        <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
+                    </div>
+                    <div class="text-center mt-3">
+                        <button id="predictBtn" class="btn btn-primary btn-lg d-none" onclick="predictImage()">
+                            <i class="fas fa-magic me-2"></i>Predict Anomalies
+                        </button>
+                    </div>
+                    <div id="uploadPreview" class="text-center mt-3 d-none">
+                        <img id="previewImg" class="img-fluid" style="max-height: 300px; border-radius: 8px;">
+                        <p id="fileName" class="mt-2 text-muted"></p>
+                    </div>
+                </section>
+
+                <!-- Results Section -->
+                <section id="results" class="d-none">
+                    <h2 class="text-center mb-4">Prediction Results</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Original Image</h5>
+                            <img id="originalImg" class="result-image" alt="Original">
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Detection Overlay</h5>
+                            <div class="position-relative">
+                                <img id="detectedImg" class="result-image" alt="Detected">
+                                <!-- Bounding boxes will be added here via JS -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>Prediction Summary</h5>
+                            <div id="predictionText" class="prediction-text">
+                                <!-- Results loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-4">
+                        <button class="btn btn-secondary" onclick="resetUpload()">Upload New Image</button>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-light py-4 mt-5">
+        <div class="container text-center">
+            <p>&copy; 2025 PipeGuard AI. All rights reserved. | <a href="#privacy" class="text-warning">Privacy</a> | <a href="#terms" class="text-warning">Terms</a></p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let selectedFile = null;
+    let formData = new FormData();
+
+    // Handle file selection
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file && file.type.startsWith('image/') && file.size <= 10 * 1024 * 1024) {
+            selectedFile = file;
+            formData = new FormData();
+            formData.append('file', file);
+
+            const preview = document.getElementById('previewImg');
+            const fileName = document.getElementById('fileName');
+            const predictBtn = document.getElementById('predictBtn');
+            const uploadPreview = document.getElementById('uploadPreview');
+
+            preview.src = URL.createObjectURL(file);
+            fileName.textContent = file.name;
+            uploadPreview.classList.remove('d-none');
+            predictBtn.classList.remove('d-none');
+        } else {
+            alert('Please select a valid image file under 10MB.');
+        }
+    }
+
+    // Predict function (AJAX POST to /predict)
+    async function predictImage() {
+        if (!selectedFile) return;
+
+        const predictBtn = document.getElementById('predictBtn');
+        predictBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analyzing...';
+        predictBtn.disabled = true;
+
+        try {
+            const response = await fetch('{{ url_for("predict") }}', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Server error ${response.status}: ${errorText}`);
+            }
+
+            const result = await response.json();
+
+            // Display results
+            document.getElementById('originalImg').src = `data:image/jpeg;base64,${result.original}`;
+            document.getElementById('detectedImg').src = `data:image/jpeg;base64,${result.detected}`;
+            document.getElementById('detectedImg').onload = () => {
+                // Add bounding boxes if coords provided in result
+                addBoundingBoxes(result.detections || []);
+            };
+
+            let textHtml = '<ul class="list-unstyled">';
+            (result.predictions || []).forEach(pred => {
+                textHtml += `<li><strong>${pred.class}:</strong> ${pred.confidence}% confidence</li>`;
+            });
+            textHtml += '</ul>';
+            if (!result.predictions || !result.predictions.length) {
+                textHtml = '<p class="text-success">No anomalies detected. Infrastructure looks secure!</p>';
+            }
+            document.getElementById('predictionText').innerHTML = textHtml;
+
+            document.getElementById('results').classList.remove('d-none');
+            document.getElementById('upload').classList.add('d-none');
+        } catch (error) {
+            console.error('Prediction error:', error);
+            alert('Error during prediction: ' + error.message);
+        } finally {
+            predictBtn.innerHTML = '<i class="fas fa-magic me-2"></i>Predict Anomalies';
+            predictBtn.disabled = false;
+        }
+    }
+
+    // Add bounding boxes overlay (simple JS, assumes detections array)
+    function addBoundingBoxes(detections) {
+        const img = document.getElementById('detectedImg');
+        const container = img.parentElement;
+        // Clear previous boxes
+        const existingBoxes = container.querySelectorAll('.detection-box');
+        existingBoxes.forEach(box => box.remove());
+        // Add new ones
+        detections.forEach(det => {
+            const box = document.createElement('div');
+            box.className = 'detection-box';
+            box.style.left = `${det.bbox[0]}px`;
+            box.style.top = `${det.bbox[1]}px`;
+            box.style.width = `${det.bbox[2] - det.bbox[0]}px`;
+            box.style.height = `${det.bbox[3] - det.bbox[1]}px`;
+            box.title = `${det.class} (${det.confidence}%)`;
+            container.appendChild(box);
+        });
+    }
+
+    // Reset upload
+    function resetUpload() {
+        selectedFile = null;
+        formData = new FormData();
+        document.getElementById('imageInput').value = '';
+        document.getElementById('uploadPreview').classList.add('d-none');
+        document.getElementById('predictBtn').classList.add('d-none');
+        document.getElementById('results').classList.add('d-none');
+        document.getElementById('upload').classList.remove('d-none');
+    }
+
+    // Drag & drop support
+    const uploadArea = document.querySelector('.upload-area');
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('bg-light');
+    });
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('bg-light'));
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('bg-light');
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            const event = new Event('change', { bubbles: true });
+            const input = document.getElementById('imageInput');
+            input.files = e.dataTransfer.files;
+            input.dispatchEvent(event);
+        }
+    });
+</script>
+</body>
+</html>

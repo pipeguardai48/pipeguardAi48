@@ -1,0 +1,6 @@
+{
+    "best_mAP50": 0.0,
+    "best_mAP50-95": 0.0,
+    "best_epoch": 0,
+    "training_time": "Unknown"
+}

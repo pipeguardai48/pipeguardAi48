@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PipeGuard AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg fixed-top bg-dark navbar-dark">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#"><i class="fas fa-shield-alt me-2 text-primary"></i>PipeGuard AI</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#home"><i class="fas fa-home me-1"></i>Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#features"><i class="fas fa-cogs me-1"></i>Features</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#cta"><i class="fas fa-play-circle me-1"></i>Get Started</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-1"></i>Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section with Background Video -->
+    <section id="home" class="hero-section">
+        <video class="bg-video" autoplay loop muted playsinline>
+            <source src="{{ url_for('static', filename='video/background.mp4') }}" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <div class="container">
+            <div class="row justify-content-center text-center">
+                <div class="col-lg-8">
+                    <h1 class="display-3 fw-bold text-white mb-4">Smart Eyes on the Energy Lifelines</h1>
+                    <p class="lead text-white-50 mb-5 fs-4">AI-Based Object and Anomaly Detection for Oil and Gas Infrastructure Security</p>
+                    <a href="#features" class="btn btn-primary btn-lg hero-btn px-4 py-3 d-inline-flex align-items-center shadow-lg">
+                        <i class="fas fa-rocket me-2"></i>Explore Now
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Refactored Features Section -->
+    <section id="features" class="features-section py-5 bg-light">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="display-4 fw-bold text-dark mb-3">Why Choose PipeGuard AI?</h2>
+                <p class="lead text-muted">Discover the power of AI-driven pipeline protection with our cutting-edge features.</p>
+            </div>
+            <div class="row g-4 align-items-stretch">
+                <!-- Feature 1: Real-Time Monitoring -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card h-100 card border-0 shadow-sm hover-shadow position-relative overflow-hidden rounded-4">
+                        <div class="card-body p-5 text-center">
+                            <div class="feature-icon-wrapper d-flex justify-content-center align-items-center mb-4 mx-auto rounded-circle bg-primary bg-opacity-10" style="width: 80px; height: 80px;">
+                                <i class="fas fa-eye fa-2x text-primary"></i>
+                            </div>
+                            <h3 class="h4 fw-bold text-primary mb-3">Real-Time Monitoring</h3>
+                            <p class="text-muted mb-4">Advanced AI algorithms detect anomalies in pipelines and rigs instantly, ensuring proactive security with 24/7 vigilance.</p>
+                            <div class="feature-cta">
+                                <a href="#cta" class="btn btn-outline-primary btn-sm px-3 py-2 d-inline-flex align-items-center">
+                                    Learn More <i class="fas fa-arrow-right ms-2"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Feature 2: Robust Security -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card h-100 card border-0 shadow-sm hover-shadow position-relative overflow-hidden rounded-4">
+                        <div class="card-body p-5 text-center">
+                            <div class="feature-icon-wrapper d-flex justify-content-center align-items-center mb-4 mx-auto rounded-circle bg-success bg-opacity-10" style="width: 80px; height: 80px;">
+                                <i class="fas fa-shield-alt fa-2x text-success"></i>
+                            </div>
+                            <h3 class="h4 fw-bold text-success mb-3">Robust Security</h3>
+                            <p class="text-muted mb-4">Secure your infrastructure with object recognition that identifies threats before they escalate, powered by state-of-the-art encryption.</p>
+                            <div class="feature-cta">
+                                <a href="#cta" class="btn btn-outline-success btn-sm px-3 py-2 d-inline-flex align-items-center">
+                                    Learn More <i class="fas fa-arrow-right ms-2"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Feature 3: Intelligent Analytics -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card h-100 card border-0 shadow-sm hover-shadow position-relative overflow-hidden rounded-4">
+                        <div class="card-body p-5 text-center">
+                            <div class="feature-icon-wrapper d-flex justify-content-center align-items-center mb-4 mx-auto rounded-circle bg-warning bg-opacity-10" style="width: 80px; height: 80px;">
+                                <i class="fas fa-chart-line fa-2x text-warning"></i>
+                            </div>
+                            <h3 class="h4 fw-bold text-warning mb-3">Intelligent Analytics</h3>
+                            <p class="text-muted mb-4">Gain actionable insights with predictive maintenance and detailed reporting dashboards for optimized operations.</p>
+                            <div class="feature-cta">
+                                <a href="#cta" class="btn btn-outline-warning btn-sm px-3 py-2 d-inline-flex align-items-center">
+                                    Learn More <i class="fas fa-arrow-right ms-2"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section id="cta" class="cta-section py-5 bg-primary text-white">
+        <div class="container text-center">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <h2 class="display-5 fw-bold mb-4">Ready to Secure Your Infrastructure?</h2>
+                    <p class="lead mb-5">Join thousands of energy professionals trusting PipeGuard AI for unparalleled protection.</p>
+                    <a href="/process" class="btn btn-light btn-lg px-5 py-3 hero-btn d-inline-flex align-items-center shadow-lg">
+                        <i class="fas fa-search me-2"></i>Start Inspection
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4">
+        <div class="container text-center">
+            <p class="mb-0">&copy; 2025 PipeGuard AI. All rights reserved. | <a href="#privacy" class="text-white-50">Privacy Policy</a> | <a href="#terms" class="text-white-50">Terms of Service</a></p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Navbar scroll effect
+        window.addEventListener('scroll', function() {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled', 'shadow');
+            } else {
+                navbar.classList.remove('scrolled', 'shadow');
+            }
+        });
+
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // Video error handling
+        document.querySelector('.bg-video').addEventListener('error', function() {
+            console.error('Video failed to load');
+            this.style.display = 'none';
+        });
+    </script>
+</body>
+</html>

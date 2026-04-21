@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PipeGuard AI - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- ← NEW: Local admin styles -->
+    <style>
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .terminal-container {
+            background: #252526;
+            border-radius: 6px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 500px;
+            margin-bottom: 20px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            border: 1px solid #3c3c3c;
+        }
+        .terminal-header {
+            background: linear-gradient(90deg, #3c3c3c 0%, #2d2d30 100%);
+            padding: 4px 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+            font-size: 11px;
+            color: #858585;
+            border-bottom: 1px solid #3c3c3c;
+        }
+        .terminal-header .prompt {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+        .terminal-header .prompt i {
+            color: #007acc;
+        }
+        .terminal-header .controls {
+            display: flex;
+            gap: 4px;
+        }
+        .terminal-header button {
+            background: transparent;
+            border: 1px solid #404040;
+            color: #858585;
+            padding: 2px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: background 0.2s;
+        }
+        .terminal-header button:hover {
+            background: #404040;
+            color: #ccc;
+        }
+        .terminal-body {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 12px;
+            font-size: 12px;
+            height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            line-height: 1.4;
+            position: relative;
+        }
+        .terminal-body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(to right, transparent, #3c3c3c, transparent);
+        }
+        .terminal-body .error {
+            color: #f48771;
+            font-weight: 500;
+        }
+        .terminal-body .warning {
+            color: #cd9731;
+        }
+        .terminal-body .info {
+            color: #4fc3f7;
+            font-weight: 500;
+        }
+        .terminal-body .success {
+            color: #6a9955;
+        }
+        .terminal-body .prompt-line {
+            color: #569cd6;
+            font-weight: 600;
+        }
+        .terminal-body .timestamp {
+            color: #858585;
+            font-size: 10px;
+            margin-right: 8px;
+        }
+        #progressSection {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            display: none;
+            width: 0%;
+            max-width: 0px;
+            margin-bottom: 20px;
+        }
+        #epochTable {
+            font-size: 0.9em;
+        }
+        #epochTable th, #epochTable td {
+            padding: 8px 4px;
+            text-align: center;
+        }
+        #iterTable {
+            font-size: 0.9em;
+        }
+        #iterTable th, #iterTable td {
+            padding: 8px 4px;
+            text-align: center;
+        }
+        .progress {
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .progress-bar {
+            background: linear-gradient(90deg, #28a745, #20c997);
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner mb-3">
+            <i class="fas fa-spinner fa-spin"></i>
+        </div>
+        <h3>Training YOLO Model... <span id="currentEpochDisplay">Epoch 0/24</span></h3>
+      
+        <!-- Progress Section -->
+        <div id="progressSection">
+            <h5 class="text-light mb-3"><i class="fas fa-chart-line me-2"></i>Live Training Metrics</h5>
+            <table id="epochTable" class="table table-dark table-sm mb-3">
+                <thead>
+                    <tr>
+                        <th>Epoch</th>
+                        <th>box_loss</th>
+                        <th>cls_loss</th>
+                        <th>dfl_loss</th>
+                        <th>mAP@0.5</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div id="iterSummary">
+                <h5 class="text-light mb-3"><i class="fas fa-list me-2"></i>Iteration Summary</h5>
+                <table id="iterTable" class="table table-dark table-sm mb-3 d-none">
+                    <thead>
+                        <tr>
+                            <th>Iteration</th>
+                            <th>Best mAP@0.5</th>
+                            <th>Avg Loss</th>
+                            <th>Time (min)</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="progress mb-2">
+                <div id="epochProgress" class="progress-bar" role="progressbar" style="width: 0%">0%</div>
+            </div>
+            <small class="text-light">Progress: <span id="progressText">0%</span></small>
+        </div>
+        <!-- VS Code-like Terminal (Enhanced) -->
+        <div class="terminal-container">
+            <div class="terminal-header">
+                <div class="prompt">
+                    <i class="fas fa-terminal"></i>
+                    <span>Bash</span>
+                    <span>~/yolo-training</span>
+                </div>
+                <div class="controls">
+                    <button onclick="copyTerminal()" title="Copy"><i class="fas fa-copy"></i></button>
+                    <button onclick="clearTerminal()" title="Clear"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+            <div id="terminal" class="terminal-body"></div>
+        </div>
+    </div>
+    <!-- Training Config Modal -->
+    <div class="modal fade" id="trainingConfigModal" tabindex="-1" aria-labelledby="trainingConfigModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 shadow-lg border-0">
+                <div class="modal-header bg-primary text-white rounded-top-4">
+                    <h5 class="modal-title" id="trainingConfigModalLabel">
+                        <i class="fas fa-cog me-2"></i>Training Configuration
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label for="batchSizeInput" class="form-label fw-semibold">Batch Size</label>
+                        <input type="number" class="form-control rounded-3" id="batchSizeInput" min="1" max="32" value="16" required>
+                        <div class="form-text">Batch size for training (Default: 16)</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="iterationsInput" class="form-label fw-semibold">Number of Iterations</label>
+                        <input type="number" class="form-control rounded-3" id="iterationsInput" min="1" max="10" value="6" required>
+                        <div class="form-text">Number of training iterations (Default: 6)</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="epochsInput" class="form-label fw-semibold">Epochs per Iteration</label>
+                        <input type="number" class="form-control rounded-3" id="epochsInput" min="1" max="10" value="4" required>
+                        <div class="form-text">Epochs in each iteration (Default: 4)</div>
+                    </div>
+                </div>
+                <div class="modal-footer rounded-bottom-4 bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmTraining">
+                        <i class="fas fa-rocket me-2"></i>Start Training
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="#"><i class="fas fa-shield-alt me-2"></i>PipeGuard AI - Admin</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-togglar-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-1"></i>Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <!-- Main Content -->
+    <div class="container mt-5 pt-5">
+        <h1 class="text-center mb-5 main-title fade-in">YOLO Dataset Training Dashboard</h1>
+        <!-- Upload Section -->
+        <div class="card upload-card mb-5 fade-in">
+            <div class="upload-header">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <h3>YOLO Dataset Builder</h3>
+                <p class="mb-0 opacity-75">Upload images + select class to build YOLO training dataset</p>
+            </div>
+            <div class="card-body p-5">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label for="classSelect" class="form-label fw-bold text-primary mb-2">Select Class:</label>
+                        <select id="classSelect" class="form-select class-dropdown">
+                            <option value="">Choose class...</option>
+                            <option value="pipe">pipe</option>
+                            <option value="crack">crack</option>
+                            <option value="gas">gas</option>
+                            <option value="leak">leak</option>
+                            <option value="no leak">no leak</option>
+                            <option value="water">water</option>
+                        </select>
+                        <div id="classNote" class="form-text d-none">Class will be inferred from folder name for folder uploads.</div>
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="uploadMethod" id="imagesMethod" value="images" checked>
+                            <label class="btn btn-outline-primary" for="imagesMethod">
+                                <i class="fas fa-images me-1"></i>Select Images
+                            </label>
+                            <input type="radio" class="btn-check" name="uploadMethod" id="folderMethod" value="folder">
+                            <label class="btn btn-outline-primary" for="folderMethod">
+                                <i class="fas fa-folder me-1"></i>Select Folder
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <!-- Images Input -->
+                <div id="imagesInput" class="upload-method">
+                    <div class="file-input-wrapper mb-4">
+                        <label for="imageUpload" class="file-input-label w-100">
+                            <i class="fas fa-folder-open"></i> Choose Images (Multiple Supported)
+                        </label>
+                        <input type="file" id="imageUpload" multiple accept="image/*">
+                    </div>
+                </div>
+                <!-- Folder Input -->
+                <div id="folderInput" class="upload-method d-none">
+                    <div class="file-input-wrapper mb-4">
+                        <label for="folderUpload" class="file-input-label w-100">
+                            <i class="fas fa-folder-tree"></i> Choose Folder (All Images Inside)
+                        </label>
+                        <input type="file" id="folderUpload" webkitdirectory directory multiple accept="image/*">
+                    </div>
+                    <small class="text-muted">Note: Folder selection works in Chrome/Edge. Includes all subfolders. Classes inferred from subfolder names.</small>
+                </div>
+              
+                <!-- Dataset Preview -->
+                <div id="datasetPreview" class="dataset-preview d-none">
+                    <h5 class="mb-3"><i class="fas fa-folder-open me-2 text-success"></i>Dataset Ready (to be placed in train folder)</h5>
+                    <div id="datasetItems"></div>
+                    <hr>
+                    <div class="text-center">
+                        <small class="text-muted">YOLO Structure: dataset/train/images/[inferred_folder_class]/[filename] + annotations (flattened on server)</small>
+                    </div>
+                </div>
+                <button id="trainBtn" class="train-btn btn-lg w-100 mt-4" disabled>
+                    <i class="fas fa-rocket me-2"></i>Build & Train YOLO Model
+                </button>
+            </div>
+        </div>
+        <!-- Results Section (Hidden Initially) -->
+        <div id="resultsSection" class="results-section d-none">
+            <div class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="card metric-card text-center h-100">
+                        <div class="card-body py-4">
+                            <i class="fas fa-chart-line metric-icon text-success"></i>
+                            <h4 class="fw-semibold mb-2">mAP@0.5</h4>
+                            <h2 class="fw-bold text-success" data-metric="map">94.2%</h2>
+                            <p class="text-muted small">Mean Average Precision</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card metric-card text-center h-100">
+                        <div class="card-body py-4">
+                            <i class="fas fa-trophy metric-icon text-warning"></i>
+                            <h4 class="fw-semibold mb-2">Best Iteration</h4>
+                            <h2 class="fw-bold text-warning" data-metric="best_iter">Iteration 3</h2>
+                            <p class="text-muted small">Peak YOLO performance iteration</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card metric-card text-center h-100">
+                        <div class="card-body py-4">
+                            <i class="fas fa-stopwatch metric-icon text-info"></i>
+                            <h4 class="fw-semibold mb-2">Training Time</h4>
+                            <h2 class="fw-bold text-info" data-metric="time">28 min</h2>
+                            <p class="text-muted small">Total training duration</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Training Graphs -->
+            <div class="card chart-card">
+                <div class="chart-header">
+                    <h4 class="mb-0"><i class="fas fa-chart-line me-2"></i>YOLO Training Progress</h4>
+                    <p class="mb-0 opacity-75">mAP and Loss over Iterations</p>
+                </div>
+                <div class="card-body p-4">
+                    <canvas id="trainingChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Footer -->
+    <footer class="mt-5">
+        <div class="container">
+            <p class="text-center mb-0">&copy; 2025 PipeGuard AI. All rights reserved.</p>
+        </div>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const uploadInput = document.getElementById('imageUpload');
+        const folderInput = document.getElementById('folderUpload');
+        const classSelect = document.getElementById('classSelect');
+        const trainBtn = document.getElementById('trainBtn');
+        const resultsSection = document.getElementById('resultsSection');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const datasetPreview = document.getElementById('datasetPreview');
+        const datasetItems = document.getElementById('datasetItems');
+        const imagesInput = document.getElementById('imagesInput');
+        const folderInputDiv = document.getElementById('folderInput');
+        const trainingConfigModal = new bootstrap.Modal(document.getElementById('trainingConfigModal'));
+        const epochsInput = document.getElementById('epochsInput');
+        const iterationsInput = document.getElementById('iterationsInput');
+        const batchSizeInput = document.getElementById('batchSizeInput');
+        const confirmTrainingBtn = document.getElementById('confirmTraining');
+        const classNote = document.getElementById('classNote');
+        const terminal = document.getElementById('terminal');
+        const epochTableBody = document.querySelector('#epochTable tbody');
+        const epochProgress = document.getElementById('epochProgress');
+        const progressText = document.getElementById('progressText');
+        const currentEpochDisplay = document.getElementById('currentEpochDisplay');
+        let dataset = [];
+        let selectedIterations = 6;
+        let selectedEpochsPerIter = 4;
+        let selectedBatchSize = 16;
+        let es = null;
+        let trainingData = {
+            epochs: [],
+            boxLoss: [],
+            clsLoss: [],
+            dflLoss: [],
+            map50: []
+        };
+        let allIterationsData = null;
+        let currentEpoch = 0;
+        let totalEpochs = 0;
+        let chart = null;
+        // Enhanced terminal functions
+        function clearTerminal() {
+            terminal.innerHTML = '';
+        }
+        function copyTerminal() {
+            const text = terminal.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                // Visual feedback (optional)
+                const btn = event.target.closest('button');
+                const original = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                setTimeout(() => { btn.innerHTML = original; }, 1000);
+            });
+        }
+        // Toggle between methods
+        document.querySelectorAll('input[name="uploadMethod"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'images') {
+                    imagesInput.classList.remove('d-none');
+                    folderInputDiv.classList.add('d-none');
+                    folderInput.value = ''; // Clear folder input
+                    classSelect.disabled = false;
+                    classNote.classList.add('d-none');
+                } else {
+                    imagesInput.classList.add('d-none');
+                    folderInputDiv.classList.remove('d-none');
+                    uploadInput.value = ''; // Clear images input
+                    classSelect.disabled = true;
+                    classSelect.value = '';
+                    classNote.classList.remove('d-none');
+                }
+                // Clear dataset on switch
+                dataset = [];
+                updatePreview();
+                checkReady();
+            });
+        });
+        // Images event
+        uploadInput.addEventListener('change', function() {
+            const selectedClass = classSelect.value;
+            if (this.files.length > 0 && selectedClass) {
+                console.log('Adding images:', this.files.length); // Debug
+                addToDataset(this.files, selectedClass);
+                this.value = '';
+            } else if (!selectedClass) {
+                alert('Please select a class first!');
+            }
+        });
+        // Folder event
+        folderInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                console.log('Adding folder files:', this.files.length); // Debug
+                addToDataset(this.files, ''); // Empty class for inference
+            }
+        });
+        classSelect.addEventListener('change', function() {
+            if (document.querySelector('input[name="uploadMethod"]:checked').value === 'images' &&
+                uploadInput.files.length > 0 && this.value) {
+                addToDataset(uploadInput.files, this.value);
+                uploadInput.value = '';
+            }
+        });
+        function addToDataset(files, selectedClass) {
+            console.log(`Adding ${files.length} files (class: ${selectedClass || 'inferred'})`); // Debug
+            Array.from(files).forEach(file => {
+                if (file.type.startsWith('image/') || file.webkitRelativePath) { // Handle folder paths
+                    let itemClass;
+                    let path;
+                    if (file.webkitRelativePath) {
+                        // For folder: infer class from subfolder (last dir before file)
+                        const relativePath = file.webkitRelativePath.replace(/\\/g, '/');
+                        const parts = relativePath.split('/');
+                        path = relativePath;
+                        // Get the immediate subfolder as class (or root if no sub)
+                        itemClass = parts.length > 1 ? parts[parts.length - 2] : 'root_folder';
+                        itemClass = itemClass.trim().toLowerCase();
+                    } else {
+                        // For images: use selectedClass
+                        itemClass = selectedClass;
+                        path = file.name;
+                    }
+                    const item = {
+                        file: file,
+                        class: itemClass,
+                        path: path,
+                        id: Date.now() + Math.random()
+                    };
+                    dataset.push(item);
+                    console.log('Added file:', path, 'class:', itemClass); // Debug
+                }
+            });
+            updatePreview();
+            checkReady();
+        }
+        function updatePreview() {
+            datasetItems.innerHTML = '';
+            dataset.forEach((item) => {
+                const div = document.createElement('div');
+                div.className = 'd-flex justify-content-between align-items-center p-2 border rounded mb-2 bg-light';
+                div.innerHTML = `
+                    <div>
+                        <i class="fas fa-image me-1 text-primary"></i>
+                        <strong>${item.class}</strong>: ${item.path}
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeItem(${item.id})" title="Remove">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                datasetItems.appendChild(div);
+            });
+            datasetPreview.classList.toggle('d-none', dataset.length === 0);
+        }
+        window.removeItem = function(id) {
+            dataset = dataset.filter(item => item.id !== id);
+            updatePreview();
+            checkReady();
+        }
+        function checkReady() {
+            if (dataset.length > 0) {
+                trainBtn.disabled = false;
+                trainBtn.innerHTML = `<i class="fas fa-rocket me-2"></i>Train YOLO (${dataset.length} images)`;
+            } else {
+                trainBtn.disabled = true;
+                trainBtn.innerHTML = `<i class="fas fa-rocket me-2"></i>Build & Train YOLO Model`;
+            }
+        }
+        // Show modal on train button click
+        trainBtn.addEventListener('click', function() {
+            if (dataset.length === 0) {
+                alert('Select files and class first!');
+                return;
+            }
+            console.log('Opening modal'); // Debug
+            trainingConfigModal.show();
+        });
+        // Confirm training
+        confirmTrainingBtn.addEventListener('click', function() {
+            selectedBatchSize = parseInt(batchSizeInput.value) || 16;
+            selectedIterations = parseInt(iterationsInput.value) || 6;
+            selectedEpochsPerIter = parseInt(epochsInput.value) || 4;
+            totalEpochs = selectedIterations * selectedEpochsPerIter;
+            if (selectedBatchSize < 1 || selectedBatchSize > 32) {
+                alert('Batch size must be between 1 and 32.');
+                return;
+            }
+            if (selectedIterations < 1 || selectedIterations > 10) {
+                alert('Iterations must be between 1 and 10.');
+                return;
+            }
+            if (selectedEpochsPerIter < 1 || selectedEpochsPerIter > 10) {
+                alert('Epochs per iteration must be between 1 and 10.');
+                return;
+            }
+            currentEpochDisplay.textContent = `Epoch 0/${totalEpochs}`;
+            trainingConfigModal.hide();
+            startTraining();
+        });
+        function startTraining() {
+            console.log('Starting upload/train with', dataset.length, 'files'); // Debug
+            trainBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading & Training...';
+            trainBtn.disabled = true;
+            const formData = new FormData();
+            dataset.forEach(item => {
+                formData.append('files', item.file);
+                console.log('Appended file:', item.file.name); // Debug
+            });
+            // For folder uploads, append empty class_name to trigger backend inference
+            const isFolderUpload = document.querySelector('input[name="uploadMethod"]:checked').value === 'folder';
+            formData.append('class_name', isFolderUpload ? '' : classSelect.value);
+            formData.append('num_iterations', selectedIterations);
+            formData.append('epochs_per_iter', selectedEpochsPerIter);
+            formData.append('batch_size', selectedBatchSize);
+            fetch('/train', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                console.log('Upload response:', response.status); // Debug
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Backend response:', data); // Debug
+                if (data.success && data.started) {
+                    // Reset training data
+                    trainingData = {
+                        epochs: [],
+                        boxLoss: [],
+                        clsLoss: [],
+                        dflLoss: [],
+                        map50: []
+                    };
+                    allIterationsData = null;
+                    currentEpoch = 0;
+                    epochTableBody.innerHTML = '';
+                    document.querySelector('#iterTable tbody').innerHTML = '';
+                    document.getElementById('iterTable').classList.add('d-none');
+                    epochProgress.style.width = '0%';
+                    progressText.textContent = '0%';
+                    currentEpochDisplay.textContent = `Epoch 0/${totalEpochs}`;
+                    clearTerminal();
+                    // Do not add initial message; let backend logs start the terminal
+                    loadingOverlay.style.display = 'flex';
+                    // Connect to SSE
+                    es = new EventSource('/stream');
+                    // === NEW: Structured Event Listeners ===
+                    es.addEventListener('train_update', function(event) {
+                        try {
+                            const data = JSON.parse(event.data);
+                            currentEpoch = data.epoch;
+                            addEpochRow(
+                                data.epoch,
+                                data.box_loss,
+                                data.cls_loss,
+                                data.dfl_loss,
+                                0 // mAP placeholder
+                            );
+                            trainingData.epochs.push(data.epoch);
+                            trainingData.boxLoss.push(data.box_loss);
+                            trainingData.clsLoss.push(data.cls_loss);
+                            trainingData.dflLoss.push(data.dfl_loss);
+                            updateProgress();
+                        } catch (e) { console.error('Train update parse error:', e); }
+                    });
+                    es.addEventListener('val_update', function(event) {
+                        try {
+                            const data = JSON.parse(event.data);
+                            const map50 = data.map50;
+                            updateEpochRow(data.epoch, map50);
+                            const idx = trainingData.epochs.indexOf(data.epoch);
+                            if (idx !== -1) trainingData.map50[idx] = map50;
+                            // Use provided progress if available
+                            if (data.progress) {
+                                epochProgress.style.width = `${data.progress}%`;
+                                progressText.textContent = `${data.progress}%`;
+                            }
+                            updateProgress();
+                        } catch (e) { console.error('Val update parse error:', e); }
+                    });
+                    es.addEventListener('iter_done', function(event) {
+                        try {
+                            const data = JSON.parse(event.data);
+                            const tbody = document.querySelector('#iterTable tbody');
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${data.iteration}</td>
+                                <td>${data.best_map.toFixed(2)}%</td>
+                                <td>${data.avg_loss.toFixed(4)}</td>
+                                <td>${data.training_time}</td>
+                            `;
+                            tbody.appendChild(row);
+                            if (tbody.children.length === selectedIterations) {
+                                document.getElementById('iterTable').classList.remove('d-none');
+                            }
+                        } catch (e) { console.error('Iter done parse error:', e); }
+                    });
+                    es.addEventListener('done', function(event) {
+    try {
+        const m = JSON.parse(event.data);
+        // 1. Best mAP card
+        document.querySelector('[data-metric="map"]').textContent = `${m.overall_best_map.toFixed(1)}%`;
+        // 2. Best iteration card
+        document.querySelector('[data-metric="best_iter"]').textContent = `Iteration ${m.overall_best_iter}`;
+        // 3. Time card
+        document.querySelector('[data-metric="time"]').textContent = m.total_training_time;
+        // 4. Set data for graph
+        allIterationsData = m.all_iterations;
+        // 5. Show results
+        loadingOverlay.style.display = 'none';
+        resultsSection.classList.remove('d-none');
+        // 6. Green success message
+        terminal.innerHTML += `<span class="success">
+            [SUCCESS] All iterations finished! Overall best mAP = ${m.overall_best_map.toFixed(2)}% in iteration ${m.overall_best_iter}
+        </span><br>`;
+        terminal.scrollTop = terminal.scrollHeight;
+        // 7. Draw the graph from iterations data
+        initChart(true);
+        // 8. Enable button again
+        trainBtn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Training Complete!';
+        trainBtn.disabled = false;
+        es.close();
+    } catch (e) { console.error('Done parse error:', e); }
+});
+                    // Keep log streaming for terminal
+                    es.onmessage = function(event) {
+                        const line = event.data;
+                        if (line && !line.startsWith('{') && !line.includes('event:')) {
+                            const timestamp = new Date().toLocaleTimeString();
+                            let colored = `<span class="timestamp">[${timestamp}]</span>`;
+                            if (line.includes('ERROR')) colored += `<span class="error">${escapeHtml(line)}</span>`;
+                            else if (line.includes('WARNING')) colored += `<span class="warning">${escapeHtml(line)}</span>`;
+                            else if (line.includes('SUCCESS') || line.includes('completed')) colored += `<span class="success">${escapeHtml(line)}</span>`;
+                            else if (line.includes('Epoch') || line.includes('mAP')) colored += `<span class="info">${escapeHtml(line)}</span>`;
+                            else colored += escapeHtml(line);
+                            terminal.innerHTML += colored + '<br>';
+                            terminal.scrollTop = terminal.scrollHeight;
+                        }
+                    };
+                    es.addEventListener('error', function(event) {
+                        console.error('SSE Error:', event);
+                        terminal.innerHTML += `<span class="error">Stream error: Training may have failed.</span><br>`;
+                        alert('Stream error: Training may have failed.');
+                        loadingOverlay.style.display = 'none';
+                        trainBtn.disabled = false;
+                        es.close();
+                    });
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error); // Debug
+                terminal.innerHTML += `<span class="error">Upload/Train failed: ${error.message}</span><br>`;
+                alert(`Training failed: ${error.message}`);
+                trainBtn.disabled = false;
+            });
+        }
+        // Escape HTML to prevent injection in terminal
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        function addEpochRow(epoch, box, cls, dfl, map50) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${epoch}</td>
+                <td>${parseFloat(box).toFixed(4)}</td>
+                <td>${parseFloat(cls).toFixed(4)}</td>
+                <td>${parseFloat(dfl).toFixed(4)}</td>
+                <td>${map50.toFixed(4)}</td>
+            `;
+            epochTableBody.appendChild(row);
+        }
+        function updateEpochRow(epoch, map50) {
+            const rows = epochTableBody.querySelectorAll('tr');
+            for (let row of rows) {
+                const epochCell = row.cells[0].textContent;
+                if (parseInt(epochCell) === epoch) {
+                    row.cells[4].textContent = parseFloat(map50).toFixed(4);
+                    break;
+                }
+            }
+        }
+        function updateProgress() {
+            const progress = (currentEpoch / totalEpochs) * 100;
+            epochProgress.style.width = `${progress}%`;
+            progressText.textContent = `${Math.round(progress)}%`;
+            currentEpochDisplay.textContent = `Epoch ${currentEpoch}/${totalEpochs}`;
+        }
+        function initChart(useRealData = false) {
+            const ctx = document.getElementById('trainingChart').getContext('2d');
+            if (chart) chart.destroy();
+            let labels, mapData, lossData, titleText;
+            if (useRealData && allIterationsData && allIterationsData.length > 0) {
+                labels = allIterationsData.map(i => `Iteration ${i.iteration}`);
+                mapData = allIterationsData.map(i => i.best_map);
+                lossData = allIterationsData.map(i => i.avg_loss);
+                titleText = `YOLOv8 Multi-Iteration Training (${allIterationsData.length} iterations)`;
+            } else {
+                // Fallback static data for 6 iterations
+                labels = ['Iteration 1', 'Iteration 2', 'Iteration 3', 'Iteration 4', 'Iteration 5', 'Iteration 6'];
+                mapData = [70, 75, 78, 82, 85, 88.5];
+                lossData = [1.5, 1.3, 1.1, 0.95, 0.85, 0.75];
+                titleText = 'YOLOv8 Multi-Iteration Training (Sample: 6 iterations)';
+            }
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Best mAP@0.5 (%) per Iteration',
+                        data: mapData,
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#28a745',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Avg Loss per Iteration',
+                        data: lossData,
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#dc3545',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: titleText }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            beginAtZero: true,
+                            max: 100,
+                            title: { display: true, text: 'Best mAP@0.5 (%)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            beginAtZero: true,
+                            grid: { drawOnChartArea: false },
+                            title: { display: true, text: 'Avg Loss' }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
