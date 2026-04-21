@@ -23,6 +23,7 @@ from io import BytesIO
 import cv2
 # ================== APP CONFIG ==================
 app = Flask(__name__)
+model = YOLO("yolov8n.pt") # Preload model for faster predictions (can be updated to load best trained model)
 app.secret_key = "supersecretkey123" # 🔒 Required for session handling
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024 # 500MB max
@@ -491,6 +492,7 @@ def predict():
 
         # Run prediction
         result = run_prediction(temp_path, app.config['UPLOAD_FOLDER'])
+        
 
         # Cleanup
         os.remove(temp_path)
@@ -503,6 +505,7 @@ def predict():
         if os.path.exists(temp_path):
             os.remove(temp_path)
         return jsonify({'error': f'Prediction error: {str(e)}'}), 500
+
 
 
 #---------------------camera ---------------------
